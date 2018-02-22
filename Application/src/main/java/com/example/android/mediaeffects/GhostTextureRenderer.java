@@ -22,8 +22,7 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
-public class TextureRenderer {
-
+public class GhostTextureRenderer {
     private int mProgram;
     private int mTexSamplerHandle;
     private int mTexCoordHandle;
@@ -34,6 +33,9 @@ public class TextureRenderer {
 
     private int mViewWidth;
     private int mViewHeight;
+
+    private int mImageWidth;
+    private int mImageHeight;
 
     private int mTexWidth;
     private int mTexHeight;
@@ -85,9 +87,11 @@ public class TextureRenderer {
         GLES20.glDeleteProgram(mProgram);
     }
 
-    public void updateTextureSize(int texWidth, int texHeight) {
+    public void updateTextureSize(int texWidth, int texHeight, int imageWidth, int imageHeight) {
         mTexWidth = texWidth;
         mTexHeight = texHeight;
+        mImageWidth = imageWidth;
+        mImageHeight = imageHeight;
         computeOutputVertices();
     }
 
@@ -109,8 +113,9 @@ public class TextureRenderer {
         GLES20.glViewport(0, 0, mViewWidth, mViewHeight);
         GLToolbox.checkGlError("glViewport");
 
-        // Disable blending
-        GLES20.glDisable(GLES20.GL_BLEND);
+        // Enable blending
+        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA);
+        GLES20.glEnable(GLES20.GL_BLEND);
 
         // Set the vertex attributes
         GLES20.glVertexAttribPointer(mTexCoordHandle, 2, GLES20.GL_FLOAT, false, 0, mTexVertices);
@@ -127,28 +132,27 @@ public class TextureRenderer {
         GLES20.glUniform1i(mTexSamplerHandle, 0);
 
         // Draw
-        GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
-        GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
+        //GLES20.glClearColor(0.0f, 0.0f, 0.0f, 1.0f);
+        //GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
         GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
     }
 
     private void computeOutputVertices() {
         if (mPosVertices != null) {
-            float imgAspectRatio = mTexWidth / (float) mTexHeight;
+            float imgAspectRatio = mImageWidth / (float) mImageHeight;
             float viewAspectRatio = mViewWidth / (float) mViewHeight;
             float relativeAspectRatio = viewAspectRatio / imgAspectRatio;
             float x0, y0, x1, y1;
             if (relativeAspectRatio > 1.0f) {
-                x0 = -1.0f / relativeAspectRatio;
-                y0 = -1.0f;
                 x1 = 1.0f / relativeAspectRatio;
                 y1 = 1.0f;
             } else {
-                x0 = -1.0f;
-                y0 = -relativeAspectRatio;
                 x1 = 1.0f;
                 y1 = relativeAspectRatio;
             }
+            x0 = x1 - 2 * (mTexWidth / (float) mViewWidth);
+            y0 = -y1;
+            y1 = -y1 + 2 * (mTexHeight / (float) mViewHeight);
             float[] coords = new float[]{x0, y0, x1, y0, x0, y1, x1, y1};
             mPosVertices.put(coords).position(0);
         }

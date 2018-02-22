@@ -43,12 +43,15 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
     private static final String STATE_CURRENT_EFFECT = "current_effect";
 
     private GLSurfaceView mEffectView;
-    private int[] mTextures = new int[2];
+    private int[] mTextures = new int[3];
     private EffectContext mEffectContext;
     private Effect mEffect;
     private TextureRenderer mTexRenderer = new TextureRenderer();
+    private GhostTextureRenderer mGhostTexRenderer = new GhostTextureRenderer();
     private int mImageWidth;
     private int mImageHeight;
+    private int mGhostImageWidth;
+    private int mGhostImageHeight;
     private boolean mInitialized = false;
     private int mCurrentEffect;
 
@@ -59,8 +62,7 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
     }
 
     @Override
-    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container,
-                             @Nullable Bundle savedInstanceState) {
+    public View onCreateView(LayoutInflater inflater, @Nullable ViewGroup container, @Nullable Bundle savedInstanceState) {
         return inflater.inflate(R.layout.fragment_media_effects, container, false);
     }
 
@@ -103,6 +105,7 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
     public void onSurfaceChanged(GL10 gl, int width, int height) {
         if (mTexRenderer != null) {
             mTexRenderer.updateViewSize(width, height);
+            mGhostTexRenderer.updateViewSize(width, height);
         }
     }
 
@@ -112,6 +115,7 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
             //Only need to do this once
             mEffectContext = EffectContext.createWithCurrentGlContext();
             mTexRenderer.init();
+            mGhostTexRenderer.init();
             loadTextures();
             mInitialized = true;
         }
@@ -129,7 +133,7 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
 
     private void loadTextures() {
         // Generate textures
-        GLES20.glGenTextures(2, mTextures, 0);
+        GLES20.glGenTextures(3, mTextures, 0);
 
         // Load input bitmap
         Bitmap bitmap = BitmapFactory.decodeResource(getResources(), R.drawable.puppy);
@@ -137,11 +141,18 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
         mImageHeight = bitmap.getHeight();
         mTexRenderer.updateTextureSize(mImageWidth, mImageHeight);
 
+        Bitmap ghostBitmap = BitmapFactory.decodeResource(getResources(), R.drawable.ghost);
+        mGhostImageWidth = ghostBitmap.getWidth();
+        mGhostImageHeight = ghostBitmap.getHeight();
+        mGhostTexRenderer.updateTextureSize(mGhostImageWidth, mGhostImageHeight, mImageWidth, mImageHeight);
+
         // Upload to texture
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextures[2]);
+        GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, ghostBitmap, 0);
+        GLToolbox.initTexParams();
+
         GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, mTextures[0]);
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bitmap, 0);
-
-        // Set texture parameters
         GLToolbox.initTexParams();
     }
 
@@ -276,12 +287,10 @@ public class MediaEffectsFragment extends Fragment implements GLSurfaceView.Rend
 
     private void renderResult() {
         if (mCurrentEffect != R.id.none) {
-            // if no effect is chosen, just render the original bitmap
             mTexRenderer.renderTexture(mTextures[1]);
         } else {
-            // render the result of applyEffect()
             mTexRenderer.renderTexture(mTextures[0]);
         }
+        mGhostTexRenderer.renderTexture(mTextures[2]);
     }
-
 }
